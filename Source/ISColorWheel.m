@@ -373,11 +373,18 @@ static PixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     [self updateImage];
 }
 
+-(void)notifyDelegateOfColorChange
+{
+    if ([self.delegate respondsToSelector:@selector(colorWheelDidChangeColor:)]) {
+        [self.delegate colorWheelDidChangeColor:self];
+    }
+}
+
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
     [self setTouchPoint:[[touches anyObject] locationInView:self]];
     
-    [self.delegate colorWheelDidChangeColor:self];
+    [self notifyDelegateOfColorChange];
 }
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
@@ -386,13 +393,13 @@ static PixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     
     if (self.continuous)
     {
-        [self.delegate colorWheelDidChangeColor:self];
+        [self notifyDelegateOfColorChange];
     }
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
 {
-    [self.delegate colorWheelDidChangeColor:self];
+    [self notifyDelegateOfColorChange];
 }
 
 - (void)setTouchPoint:(CGPoint)point
