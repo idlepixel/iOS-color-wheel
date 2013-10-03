@@ -155,10 +155,10 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
         
         _imageDataLength = 0;
         
-        _hueCount = 32.0;
+        _hueCount = 0.0;
         _hueOffset = 0.0;
-        _saturationCount = 8.0;
-        _saturationMinimum = 0.75;
+        _saturationCount = 0.0;
+        _saturationMinimum = 0.0;
         _saturationMaximum = 1.0;
         
         _clampRGBAmount = 0;
@@ -218,8 +218,8 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     CGPoint center = _wheelCenter;
     
     float angle = atan2(point.x - center.x, point.y - center.y) + M_PI;
-    float dist = ISColorWheel_PointDistance(point, CGPointMake(center.x, center.y));
-        
+    float dist = ISColorWheel_PointDistance(point, center);
+    
     float hue = angle / M_DOUBLE_PI;
     
     if (_hueCount > 0.0) {
@@ -359,12 +359,23 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
 
 - (void)setCurrentColor:(UIColor*)color
 {
+    if (color == nil) return;
+    
     float hue = 0.0;
     float saturation = 0.0;
     float brightness = 1.0;
     float alpha = 1.0;
     
-    [color getHue:&hue saturation:&saturation brightness:&brightness alpha:&alpha];
+    CGColorSpaceModel colorSpaceModel = CGColorSpaceGetModel(CGColorGetColorSpace(color.CGColor));
+    
+    if (colorSpaceModel == kCGColorSpaceModelRGB) {
+        [color getHue:&hue saturation:&saturation brightness:&brightness alpha:&alpha];
+    } else if (colorSpaceModel == kCGColorSpaceModelMonochrome) {
+        const CGFloat *c = CGColorGetComponents(color.CGColor);
+        saturation = 0.0;
+        brightness = c[0];
+        alpha = c[1];
+    }
     
     self.brightness = brightness;
     
