@@ -165,6 +165,7 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 @end
 
 @implementation ISColorWheel
+@synthesize currentColor=_currentColor;
 
 - (id)initWithFrame:(CGRect)frame
 {
@@ -336,6 +337,8 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
         return;
     }
     
+    if (isnan(_touchPoint.x) || isnan(_touchPoint.y)) return;
+    
     self.knobView.bounds = CGRectMake(0, 0, self.knobSize.width, self.knobSize.height);
     self.knobView.center = _touchPoint;
     ISColorKnobView *colorKnobView = self.colorKnobView;
@@ -345,6 +348,13 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
         } else {
             colorKnobView.fillColor = [UIColor clearColor];
         }
+    }
+}
+
+- (void)willMoveToSuperview:(UIView *)newSuperview
+{
+    if (newSuperview != nil) {
+        self.currentColor = self.currentColor;
     }
 }
 
@@ -410,13 +420,18 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
 
 - (UIColor*)currentColor
 {
-    ISColorWheelPixelRGB pixel = [self colorAtPoint:[self viewToImageSpace:_touchPoint]];
-    return [UIColor colorWithRed:pixel.r / 255.0f green:pixel.g / 255.0f blue:pixel.b / 255.0f alpha:1.0];
+    if (self.superview != nil && _radius > 0.0f) {
+        ISColorWheelPixelRGB pixel = [self colorAtPoint:[self viewToImageSpace:_touchPoint]];
+        _currentColor = [UIColor colorWithRed:pixel.r / 255.0f green:pixel.g / 255.0f blue:pixel.b / 255.0f alpha:1.0];
+    }
+    return _currentColor;
 }
 
 - (void)setCurrentColor:(UIColor*)color
 {
-    if (color == nil) return;
+    _currentColor = color;
+    
+    if (color == nil || self.superview == nil || _radius <= 0.0f) return;
     
     float hue = 0.0;
     float saturation = 0.0;
@@ -446,7 +461,9 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
         brightness = swap;
     }
     
-    self.brightness = brightness;
+    if (!_lockBrightness) {
+        _brightness = brightness;
+    }
     
     if (_hueOffset != 0.0) {
         
@@ -582,6 +599,7 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     [self updateWheelCenter];
     [self updateImage];
     [self updateKnob];
+    self.currentColor = self.currentColor;
 }
 
 -(void)notifyDelegateOfColorChange
