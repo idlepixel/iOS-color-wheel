@@ -13,7 +13,7 @@ typedef struct
     unsigned char g;
     unsigned char b;
     
-} PixelRGB;
+} ISColorWheelPixelRGB;
 
 static float ISColorWheel_PointDistance (CGPoint p1, CGPoint p2)
 {
@@ -21,7 +21,7 @@ static float ISColorWheel_PointDistance (CGPoint p1, CGPoint p2)
 }
 
 
-static PixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
+static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 {
     h *= 6.0f;
     int i = floorf(h);
@@ -68,7 +68,7 @@ static PixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
             break;
     }
     
-    PixelRGB pixel;
+    ISColorWheelPixelRGB pixel;
     pixel.r = r * 255.0f;
     pixel.g = g * 255.0f;
     pixel.b = b * 255.0f;
@@ -104,7 +104,7 @@ static PixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 
 @interface ISColorWheel ()
 {
-    PixelRGB* _imageData;
+    ISColorWheelPixelRGB* _imageData;
 }
 
 @property (nonatomic, assign) NSInteger imageDataLength;
@@ -113,7 +113,7 @@ static PixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 @property (nonatomic, assign) CGFloat diameter;
 @property (nonatomic, assign) CGPoint touchPoint;
 
-- (PixelRGB)colorAtPoint:(CGPoint)point;
+- (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point;
 - (CGPoint)viewToImageSpace:(CGPoint)point;
 - (void)updateKnob;
 
@@ -161,7 +161,7 @@ static PixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 }
 
 
-- (PixelRGB)colorAtPoint:(CGPoint)point
+- (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point
 {
     CGPoint center = CGPointMake(_radius, _radius);
     
@@ -223,7 +223,7 @@ static PixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     int width = _diameter;
     int height = _diameter;
     
-    int dataLength = sizeof(PixelRGB) * width * height;
+    int dataLength = sizeof(ISColorWheelPixelRGB) * width * height;
     
     if (dataLength != _imageDataLength)
     {
@@ -269,7 +269,7 @@ static PixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 
 - (UIColor*)currentColor
 {
-    PixelRGB pixel = [self colorAtPoint:[self viewToImageSpace:_touchPoint]];    
+    ISColorWheelPixelRGB pixel = [self colorAtPoint:[self viewToImageSpace:_touchPoint]];    
     return [UIColor colorWithRed:pixel.r / 255.0f green:pixel.g / 255.0f blue:pixel.b / 255.0f alpha:1.0];
 }
 
