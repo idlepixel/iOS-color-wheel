@@ -354,7 +354,7 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
 - (void)willMoveToSuperview:(UIView *)newSuperview
 {
     if (newSuperview != nil) {
-        self.currentColor = self.currentColor;
+        self.currentColor = _currentColor;
     }
 }
 
@@ -598,8 +598,8 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     _imageCenter = CGPointMake(_radius, _radius);
     [self updateWheelCenter];
     [self updateImage];
+    self.currentColor = _currentColor;
     [self updateKnob];
-    self.currentColor = self.currentColor;
 }
 
 -(void)notifyDelegateOfColorChange
