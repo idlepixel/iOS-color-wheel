@@ -152,6 +152,7 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 @property (nonatomic, assign) CGFloat diameter;
 @property (nonatomic, assign) CGPoint touchPoint;
 @property (nonatomic, assign) CGPoint wheelCenter;
+@property (nonatomic, assign) CGPoint imageCenter;
 
 - (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point;
 - (CGPoint)viewToImageSpace:(CGPoint)point;
@@ -254,10 +255,8 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
 
 - (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point
 {
-    CGPoint center = _wheelCenter;
-    
-    float angle = atan2(point.x - center.x, point.y - center.y) + M_PI;
-    float dist = ISColorWheel_PointDistance(point, center);
+    float angle = atan2(point.x - _imageCenter.x, point.y - _imageCenter.y) + M_PI;
+    float dist = ISColorWheel_PointDistance(point, _imageCenter);
     
     float hue = angle / M_DOUBLE_PI;
     
@@ -449,8 +448,6 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     
     self.brightness = brightness;
     
-    CGPoint center = _wheelCenter;
-    
     if (_hueOffset != 0.0) {
         
         hue = hue - _hueOffset + 1.0;
@@ -464,8 +461,8 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     float dist = saturation * _radius;
         
     CGPoint point;
-    point.x = center.x + (cosf(angle) * dist);
-    point.y = center.y + (sinf(angle) * dist);
+    point.x = _wheelCenter.x + (cosf(angle) * dist);
+    point.y = _wheelCenter.y + (sinf(angle) * dist);
     
     [self setTouchPoint: point];
     [self updateImage];
@@ -540,7 +537,6 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
 
 - (void)drawRect:(CGRect)rect
 {
-    CGPoint center = _wheelCenter;
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     
     CGContextSaveGState (ctx);
@@ -548,7 +544,7 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     CGFloat borderWidth = MAX(0.0f, self.borderWidth);
     CGFloat halfBorderWidth = borderWidth/2.0f;
     
-    CGRect wheelRect = CGRectMake(center.x - _radius, center.y - _radius, _diameter, _diameter);
+    CGRect wheelRect = CGRectMake(_wheelCenter.x - _radius, _wheelCenter.y - _radius, _diameter, _diameter);
     CGRect borderRect = CGRectInset(wheelRect, -halfBorderWidth, -halfBorderWidth);
     
     if (borderWidth > 0.0f && self.borderColor != nil) {
@@ -582,6 +578,7 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     _radius = floor(MIN(CGRectGetWidth(bounds), CGRectGetHeight(bounds)) / 2.0);
     _radius -= MAX(0.0f, self.borderWidth);
     _diameter = _radius * 2.0f;
+    _imageCenter = CGPointMake(_radius, _radius);
     [self updateWheelCenter];
     [self updateImage];
     [self updateKnob];
@@ -618,22 +615,20 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
 
 - (void)setTouchPoint:(CGPoint)point
 {
-    CGPoint center = _wheelCenter;
-    
     // Check if the touch is outside the wheel
-    if (ISColorWheel_PointDistance(center, point) < _radius) {
+    if (ISColorWheel_PointDistance(_wheelCenter, point) < _radius) {
         _touchPoint = point;
         
     } else {
         // If so we need to create a drection vector and calculate the constrained point
-        CGPoint vec = CGPointMake(point.x - center.x, point.y - center.y);
+        CGPoint vec = CGPointMake(point.x - _wheelCenter.x, point.y - _wheelCenter.y);
         
         float extents = sqrtf((vec.x * vec.x) + (vec.y * vec.y));
         
         vec.x /= extents;
         vec.y /= extents;
         
-        _touchPoint = CGPointMake(center.x + vec.x * _radius, center.y + vec.y * _radius);
+        _touchPoint = CGPointMake(_wheelCenter.x + vec.x * _radius, _wheelCenter.y + vec.y * _radius);
     }
     
     [self updateKnob];
