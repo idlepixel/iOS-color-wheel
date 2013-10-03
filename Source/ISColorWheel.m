@@ -165,6 +165,9 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
         _clampRGBMargin = 0;
         
         _brightness = 1.0;
+        
+        _swapSaturationAndBrightness = NO;
+        
         _knobSize = CGSizeMake(20, 20);
         
         [self updateWheelCenter];
@@ -239,6 +242,17 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     
     float sat = dist / (_radius);
     
+    sat = MIN(sat, 1.0);
+    sat = MAX(sat, 0.0);
+    
+    float brightness;
+    if (_swapSaturationAndBrightness) {
+        brightness = sat;
+        sat = _brightness;
+    } else {
+        brightness = _brightness;
+    }
+    
     if (_saturationCount > 0.0) {
         if (_saturationCount <= 1.0) {
             sat = 1.0f;
@@ -255,7 +269,7 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
         sat = sat * (MIN(1.0f, _saturationMaximum) - satMin) + satMin;
     }
     
-    ISColorWheelPixelRGB rgb = ISColorWheel_HSBToRGB(hue, sat, self.brightness);
+    ISColorWheelPixelRGB rgb = ISColorWheel_HSBToRGB(hue, sat, brightness);
     
     if (_clampRGBAmount > 1) {
         rgb.r = RoundClamp(rgb.r, _clampRGBAmount, _clampRGBMargin);
@@ -375,6 +389,18 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
         saturation = 0.0;
         brightness = c[0];
         alpha = c[1];
+    }
+    
+    /*/
+    NSLog(@"hue = %f",hue);
+    NSLog(@"saturation = %f",saturation);
+    NSLog(@"brightness = %f",brightness);
+    //*/
+    
+    if (_swapSaturationAndBrightness) {
+        CGFloat swap = saturation;
+        saturation = brightness;
+        brightness = swap;
     }
     
     self.brightness = brightness;

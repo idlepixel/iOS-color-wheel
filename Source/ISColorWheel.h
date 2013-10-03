@@ -31,6 +31,8 @@
 
 @property (nonatomic, assign) CGFloat brightness;
 
+@property (nonatomic, assign) BOOL swapSaturationAndBrightness;
+
 @property (nonatomic, strong) UIView* knobView;
 @property (nonatomic, assign) CGSize knobSize;
 @property (nonatomic, assign) CGFloat knobBorderWidth;
