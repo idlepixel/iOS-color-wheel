@@ -82,6 +82,7 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 
 @property (nonatomic, assign) CGFloat borderWidth;
 @property (nonatomic, strong) UIColor* borderColor;
+@property (nonatomic, strong) UIColor* fillColor;
 
 @end
 
@@ -93,6 +94,7 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     {
         self.backgroundColor = [UIColor clearColor];
         self.borderColor = [UIColor blackColor];
+        self.fillColor = [UIColor clearColor];
         self.borderWidth = 2.0;
     }
     return self;
@@ -100,24 +102,41 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 
 - (void)drawRect:(CGRect)rect
 {
+    CGRect ellipseRect = CGRectInset(self.bounds, _borderWidth, _borderWidth);
     CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGContextSetFillColorWithColor(ctx, _fillColor.CGColor);
+    CGContextAddEllipseInRect(ctx, ellipseRect);
+    CGContextFillPath(ctx);
     CGContextSetLineWidth(ctx, _borderWidth);
     CGContextSetStrokeColorWithColor(ctx, _borderColor.CGColor);
-    CGContextAddEllipseInRect(ctx, CGRectInset(self.bounds, _borderWidth, _borderWidth));
+    CGContextAddEllipseInRect(ctx, ellipseRect);
     CGContextStrokePath(ctx);
 }
 
 -(void)setBorderColor:(UIColor *)borderColor
 {
-    _borderColor = borderColor;
-    [self setNeedsDisplay];
+    if (![_borderColor isEqual:borderColor]) {
+        _borderColor = borderColor;
+        [self setNeedsDisplay];
+    }
 }
 
 -(void)setBorderWidth:(CGFloat)borderWidth
 {
-    _borderWidth = borderWidth;
-    [self setNeedsDisplay];
+    if (_borderWidth != borderWidth) {
+        _borderWidth = borderWidth;
+        [self setNeedsDisplay];
+    }
 }
+
+-(void)setFillColor:(UIColor *)fillColor
+{
+    if (![_fillColor isEqual:fillColor]) {
+        _fillColor = fillColor;
+        [self setNeedsDisplay];
+    }
+}
+
 
 @end
 
@@ -139,6 +158,8 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 - (void)updateKnob;
 
 - (void)initialize;
+
+- (ISColorKnobView *)colorKnobView;
 
 @end
 
@@ -185,7 +206,7 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     
     _swapSaturationAndBrightness = NO;
     
-    _knobSize = CGSizeMake(20, 20);
+    _knobSize = CGSizeMake(32.0f, 32.0f);
     
     [self updateWheelCenter];
     _touchPoint = _wheelCenter;
@@ -318,6 +339,14 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     
     self.knobView.bounds = CGRectMake(0, 0, self.knobSize.width, self.knobSize.height);
     self.knobView.center = _touchPoint;
+    ISColorKnobView *colorKnobView = self.colorKnobView;
+    if (colorKnobView != nil) {
+        if (_knobShowsCurrentColor) {
+            colorKnobView.fillColor = self.currentColor;
+        } else {
+            colorKnobView.fillColor = [UIColor clearColor];
+        }
+    }
 }
 
 - (void)updateImage
@@ -440,23 +469,32 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     
     [self setTouchPoint: point];
     [self updateImage];
+    [self updateKnob];
 }
 
 - (void)setKnobView:(UIView *)knobView
 {
-    if (_knobView)
-    {
-        [_knobView removeFromSuperview];
+    if (_knobView != knobView) {
+        if (_knobView) {
+            [_knobView removeFromSuperview];
+        }
+        
+        _knobView = knobView;
+        
+        if (_knobView) {
+            [self addSubview:_knobView];
+        }
     }
-    
-    _knobView = knobView;
-    
-    if (_knobView)
-    {
-        [self addSubview:_knobView];
-    }
-    
     [self updateKnob];
+}
+
+- (ISColorKnobView *)colorKnobView
+{
+    if ([_knobView isKindOfClass:[ISColorKnobView class]]) {
+        return (ISColorKnobView *)_knobView;
+    } else {
+        return nil;
+    }
 }
 
 -(void)setKnobBorderColor:(UIColor *)knobBorderColor
@@ -546,6 +584,7 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     _diameter = _radius * 2.0f;
     [self updateWheelCenter];
     [self updateImage];
+    [self updateKnob];
 }
 
 -(void)notifyDelegateOfColorChange

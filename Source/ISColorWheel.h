@@ -37,6 +37,7 @@
 @property (nonatomic, assign) CGSize knobSize;
 @property (nonatomic, assign) CGFloat knobBorderWidth;
 @property (nonatomic, strong) UIColor* knobBorderColor;
+@property (nonatomic, assign) BOOL knobShowsCurrentColor;
 
 @property (nonatomic, assign) CGFloat borderWidth;
 @property (nonatomic, strong) UIColor* borderColor;
