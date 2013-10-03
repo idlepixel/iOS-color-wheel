@@ -138,6 +138,8 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 - (CGPoint)viewToImageSpace:(CGPoint)point;
 - (void)updateKnob;
 
+- (void)initialize;
+
 @end
 
 @implementation ISColorWheel
@@ -145,41 +147,54 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 - (id)initWithFrame:(CGRect)frame
 {
     self = [super initWithFrame:frame];
-    if (self)
-    {
-        _radialImage = NULL;
-        _imageData = NULL;
-        
-        _borderColor = [UIColor blackColor];
-        _borderWidth = 2.0f;
-        
-        _imageDataLength = 0;
-        
-        _hueCount = 0.0;
-        _hueOffset = 0.0;
-        _saturationCount = 0.0;
-        _saturationMinimum = 0.0;
-        _saturationMaximum = 1.0;
-        
-        _clampRGBAmount = 0;
-        _clampRGBMargin = 0;
-        
-        _brightness = 1.0;
-        
-        _swapSaturationAndBrightness = NO;
-        
-        _knobSize = CGSizeMake(20, 20);
-        
-        [self updateWheelCenter];
-        _touchPoint = _wheelCenter;
-                
-        ISColorKnobView* knob = [[ISColorKnobView alloc] init];
-        self.knobView = knob;
-        self.backgroundColor = [UIColor clearColor];
-        
-        _continuous = false;
+    if (self) {
+        [self initialize];
     }
     return self;
+}
+
+- (id)initWithCoder:(NSCoder *)aDecoder
+{
+    self = [super initWithCoder:aDecoder];
+    if (self) {
+        [self initialize];
+    }
+    return self;
+}
+
+- (void)initialize
+{
+    _radialImage = NULL;
+    _imageData = NULL;
+    
+    _borderColor = [UIColor blackColor];
+    _borderWidth = 2.0f;
+    
+    _imageDataLength = 0;
+    
+    _hueCount = 0.0;
+    _hueOffset = 0.0;
+    _saturationCount = 0.0;
+    _saturationMinimum = 0.0;
+    _saturationMaximum = 1.0;
+    
+    _clampRGBAmount = 0;
+    _clampRGBMargin = 0;
+    
+    _brightness = 1.0;
+    
+    _swapSaturationAndBrightness = NO;
+    
+    _knobSize = CGSizeMake(20, 20);
+    
+    [self updateWheelCenter];
+    _touchPoint = _wheelCenter;
+    
+    ISColorKnobView* knob = [[ISColorKnobView alloc] init];
+    self.knobView = knob;
+    self.backgroundColor = [UIColor clearColor];
+    
+    _continuous = false;
 }
 
 - (void)dealloc
