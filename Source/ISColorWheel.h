@@ -19,14 +19,29 @@
 
 @interface ISColorWheel : UIView
 
+@property (nonatomic, assign) int clampRGBAmount;
+@property (nonatomic, assign) int clampRGBMargin;
+
+@property (nonatomic, assign) float hueCount;
+@property (nonatomic, assign) float hueOffset;
+
+@property (nonatomic, assign) float saturationCount;
+@property (nonatomic, assign) float saturationMinimum;
+@property (nonatomic, assign) float saturationMaximum;
+
+@property (nonatomic, assign) CGFloat brightness;
+
 @property (nonatomic, strong) UIView* knobView;
 @property (nonatomic, assign) CGSize knobSize;
+@property (nonatomic, assign) CGFloat knobBorderWidth;
+@property (nonatomic, strong) UIColor* knobBorderColor;
+
 @property (nonatomic, assign) CGFloat borderWidth;
 @property (nonatomic, strong) UIColor* borderColor;
-@property (nonatomic, assign) CGFloat brightness;
+
 @property (nonatomic, assign) BOOL continuous;
 @property (nonatomic, weak) id <ISColorWheelDelegate> delegate;
-@property (nonatomic, assign) UIColor* currentColor;
+@property (assign) UIColor* currentColor;
 
 - (void)updateImage;
 - (void)setTouchPoint:(CGPoint)point;

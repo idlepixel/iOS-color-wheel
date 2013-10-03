@@ -7,6 +7,8 @@
 
 #import "ISColorWheel.h"
 
+#define M_DOUBLE_PI         6.28318530717959
+
 typedef struct
 {
     unsigned char r;
@@ -78,6 +80,9 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 
 @interface ISColorKnobView : UIView
 
+@property (nonatomic, assign) CGFloat borderWidth;
+@property (nonatomic, strong) UIColor* borderColor;
+
 @end
 
 @implementation ISColorKnobView
@@ -87,6 +92,8 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     if ((self = [super initWithFrame:frame]))
     {
         self.backgroundColor = [UIColor clearColor];
+        self.borderColor = [UIColor blackColor];
+        self.borderWidth = 2.0;
     }
     return self;
 }
@@ -94,11 +101,24 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 - (void)drawRect:(CGRect)rect
 {
     CGContextRef ctx = UIGraphicsGetCurrentContext();
-    CGContextSetLineWidth(ctx, 2.0);
-    CGContextSetStrokeColorWithColor(ctx, [UIColor blackColor].CGColor);
-    CGContextAddEllipseInRect(ctx, CGRectInset(self.bounds, 2.0, 2.0));
+    CGContextSetLineWidth(ctx, _borderWidth);
+    CGContextSetStrokeColorWithColor(ctx, _borderColor.CGColor);
+    CGContextAddEllipseInRect(ctx, CGRectInset(self.bounds, _borderWidth, _borderWidth));
     CGContextStrokePath(ctx);
 }
+
+-(void)setBorderColor:(UIColor *)borderColor
+{
+    _borderColor = borderColor;
+    [self setNeedsDisplay];
+}
+
+-(void)setBorderWidth:(CGFloat)borderWidth
+{
+    _borderWidth = borderWidth;
+    [self setNeedsDisplay];
+}
+
 @end
 
 
@@ -112,6 +132,7 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 @property (nonatomic, assign) CGFloat radius;
 @property (nonatomic, assign) CGFloat diameter;
 @property (nonatomic, assign) CGPoint touchPoint;
+@property (nonatomic, assign) CGPoint wheelCenter;
 
 - (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point;
 - (CGPoint)viewToImageSpace:(CGPoint)point;
@@ -134,9 +155,20 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
         
         _imageDataLength = 0;
         
+        _hueCount = 32.0;
+        _hueOffset = 0.0;
+        _saturationCount = 8.0;
+        _saturationMinimum = 0.75;
+        _saturationMaximum = 1.0;
+        
+        _clampRGBAmount = 0;
+        _clampRGBMargin = 0;
+        
         _brightness = 1.0;
         _knobSize = CGSizeMake(20, 20);
-        _touchPoint = CGPointMake(CGRectGetWidth(self.bounds) / 2.0, CGRectGetHeight(self.bounds) / 2.0);
+        
+        [self updateWheelCenter];
+        _touchPoint = _wheelCenter;
                 
         ISColorKnobView* knob = [[ISColorKnobView alloc] init];
         self.knobView = knob;
@@ -160,35 +192,87 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     }
 }
 
+NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin)
+{
+    int offset = value % rounding;
+    int base = value - offset;
+    int result;
+    int halfRounding = rounding/2;
+    if (offset < margin) {
+        result = base + round(((float)offset/(float)margin) * halfRounding);
+    } else if ((rounding - offset) < margin) {
+        result = base + rounding - round(((float)(rounding - offset)/(float)margin) * halfRounding);
+    } else {
+        result = base + halfRounding;
+    }
+    if (result < 0) {
+        result = 0;
+    } else if (result > 255) {
+        result = 255;
+    }
+    return result;
+}
 
 - (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point
 {
-    CGPoint center = CGPointMake(_radius, _radius);
+    CGPoint center = _wheelCenter;
     
     float angle = atan2(point.x - center.x, point.y - center.y) + M_PI;
     float dist = ISColorWheel_PointDistance(point, CGPointMake(center.x, center.y));
         
-    float hue = angle / (M_PI * 2.0f);
+    float hue = angle / M_DOUBLE_PI;
+    
+    if (_hueCount > 0.0) {
+        hue = round(hue * _hueCount) / _hueCount;
+    }
+    
+    if (_hueOffset != 0.0) {
+        hue += _hueOffset;
+        if (hue > 1.0) {
+            double intPart;
+            hue = modf(hue, &intPart);
+        }
+    }
     
     hue = MIN(hue, 1.0f - .0000001f);
     hue = MAX(hue, 0.0f);
     
     float sat = dist / (_radius);
     
-    sat = MIN(sat, 1.0f);
-    sat = MAX(sat, 0.0f);
+    if (_saturationCount > 0.0) {
+        if (_saturationCount <= 1.0) {
+            sat = 1.0f;
+        } else {
+            sat = round(sat * _saturationCount - 0.5) / (_saturationCount - 1.0);
+        }
+    }
     
-    return ISColorWheel_HSBToRGB(hue, sat, self.brightness);
+    sat = MIN(sat, 1.0);
+    sat = MAX(sat, 0.0);
+    
+    if (_saturationMinimum > 0.0 || _saturationMaximum < 1.0) {
+        float satMin = MAX(0.0, _saturationMinimum);
+        sat = sat * (MIN(1.0f, _saturationMaximum) - satMin) + satMin;
+    }
+    
+    ISColorWheelPixelRGB rgb = ISColorWheel_HSBToRGB(hue, sat, self.brightness);
+    
+    if (_clampRGBAmount > 1) {
+        rgb.r = RoundClamp(rgb.r, _clampRGBAmount, _clampRGBMargin);
+        rgb.g = RoundClamp(rgb.g, _clampRGBAmount, _clampRGBMargin);
+        rgb.b = RoundClamp(rgb.b, _clampRGBAmount, _clampRGBMargin);
+    }
+    
+    return rgb;
 }
 
 - (CGPoint)viewToImageSpace:(CGPoint)point
-{    
-    float width = CGRectGetWidth(self.bounds);
+{
     float height = CGRectGetHeight(self.bounds);
     
     point.y = height - point.y;
         
-    CGPoint min = CGPointMake(width / 2.0 - _radius, height / 2.0 - _radius);
+    CGPoint min = CGPointMake(_wheelCenter.x - _radius, _wheelCenter.y - _radius);
     
     point.x = point.x - min.x;
     point.y = point.y - min.y;
@@ -269,25 +353,34 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 
 - (UIColor*)currentColor
 {
-    ISColorWheelPixelRGB pixel = [self colorAtPoint:[self viewToImageSpace:_touchPoint]];    
+    ISColorWheelPixelRGB pixel = [self colorAtPoint:[self viewToImageSpace:_touchPoint]];
     return [UIColor colorWithRed:pixel.r / 255.0f green:pixel.g / 255.0f blue:pixel.b / 255.0f alpha:1.0];
 }
 
 - (void)setCurrentColor:(UIColor*)color
 {
-    float h = 0.0;
-    float s = 0.0;
-    float b = 1.0;
-    float a = 1.0;
+    float hue = 0.0;
+    float saturation = 0.0;
+    float brightness = 1.0;
+    float alpha = 1.0;
     
-    [color getHue:&h saturation:&s brightness:&b alpha:&a];
+    [color getHue:&hue saturation:&saturation brightness:&brightness alpha:&alpha];
     
-    self.brightness = b;
+    self.brightness = brightness;
     
-    CGPoint center = CGPointMake(_radius, _radius);
+    CGPoint center = _wheelCenter;
     
-    float angle = (h * (M_PI * 2.0)) + M_PI / 2;
-    float dist = s * _radius;
+    if (_hueOffset != 0.0) {
+        
+        hue = hue - _hueOffset + 1.0;
+        if (hue > 1.0) {
+            double intPart;
+            hue = modf(hue, &intPart);
+        }
+    }
+    
+    float angle = (hue * M_DOUBLE_PI) + M_PI_2;
+    float dist = saturation * _radius;
         
     CGPoint point;
     point.x = center.x + (cosf(angle) * dist);
@@ -314,6 +407,22 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     [self updateKnob];
 }
 
+-(void)setKnobBorderColor:(UIColor *)knobBorderColor
+{
+    _knobBorderColor = knobBorderColor;
+    if ([_knobView isKindOfClass:[ISColorKnobView class]]) {
+        [(ISColorKnobView *)_knobView setBorderColor:knobBorderColor];
+    }
+}
+
+-(void)setKnobBorderWidth:(CGFloat)knobBorderWidth
+{
+    _knobBorderWidth = knobBorderWidth;
+    if ([_knobView isKindOfClass:[ISColorKnobView class]]) {
+        [(ISColorKnobView *)_knobView setBorderWidth:knobBorderWidth];
+    }
+}
+
 -(void)setBorderColor:(UIColor *)borderColor
 {
     if (_borderColor != borderColor && ![borderColor isEqual:_borderColor]) {
@@ -330,12 +439,18 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     }
 }
 
+-(void)setHueOffset:(float)hueOffset
+{
+    hueOffset = MIN(1.0f, MAX(0.0f, hueOffset));
+    if (_hueOffset != hueOffset) {
+        _hueOffset = hueOffset;
+        [self setNeedsLayout];
+    }
+}
+
 - (void)drawRect:(CGRect)rect
 {
-    int width = CGRectGetWidth(self.bounds);
-    int height = CGRectGetHeight(self.bounds);
-    
-    CGPoint center = CGPointMake(round(width / 2.0), floor(height / 2.0));
+    CGPoint center = _wheelCenter;
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     
     CGContextSaveGState (ctx);
@@ -364,12 +479,20 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
     CGContextRestoreGState (ctx);
 }
 
+-(void)updateWheelCenter
+{
+    CGSize boundsSize = self.bounds.size;
+    _wheelCenter = CGPointMake(round(boundsSize.width/2.0f), round(boundsSize.height/2.0f));
+}
+
 - (void)layoutSubviews
 {
     [super layoutSubviews];
-    _radius = floor(MIN(CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds)) / 2.0);
+    CGRect bounds = self.bounds;
+    _radius = floor(MIN(CGRectGetWidth(bounds), CGRectGetHeight(bounds)) / 2.0);
     _radius -= MAX(0.0f, self.borderWidth);
     _diameter = _radius * 2.0f;
+    [self updateWheelCenter];
     [self updateImage];
 }
 
@@ -404,18 +527,13 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 
 - (void)setTouchPoint:(CGPoint)point
 {
-    float width = CGRectGetWidth(self.bounds);
-    float height = CGRectGetHeight(self.bounds);
-    
-    CGPoint center = CGPointMake(width / 2.0, height / 2.0);
+    CGPoint center = _wheelCenter;
     
     // Check if the touch is outside the wheel
-    if (ISColorWheel_PointDistance(center, point) < _radius)
-    {
+    if (ISColorWheel_PointDistance(center, point) < _radius) {
         _touchPoint = point;
-    }
-    else
-    {
+        
+    } else {
         // If so we need to create a drection vector and calculate the constrained point
         CGPoint vec = CGPointMake(point.x - center.x, point.y - center.y);
         
