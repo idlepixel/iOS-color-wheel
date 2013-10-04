@@ -154,7 +154,7 @@ static ISColorWheelPixelRGB ISColorWheel_HSBToRGB (float h, float s, float v)
 @property (nonatomic, assign) CGPoint wheelCenter;
 @property (nonatomic, assign) CGPoint imageCenter;
 
-- (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point;
+- (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point forDisplay:(BOOL)forDisplay;
 - (CGPoint)viewToImageSpace:(CGPoint)point;
 - (void)updateKnob;
 
@@ -254,7 +254,7 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     return result;
 }
 
-- (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point
+- (ISColorWheelPixelRGB)colorAtPoint:(CGPoint)point forDisplay:(BOOL)forDisplay
 {
     float angle = atan2(point.x - _imageCenter.x, point.y - _imageCenter.y) + M_PI;
     float dist = ISColorWheel_PointDistance(point, _imageCenter);
@@ -308,9 +308,11 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     ISColorWheelPixelRGB rgb = ISColorWheel_HSBToRGB(hue, sat, brightness);
     
     if (_clampRGBAmount > 1) {
-        rgb.r = RoundClamp(rgb.r, _clampRGBAmount, _clampRGBMargin);
-        rgb.g = RoundClamp(rgb.g, _clampRGBAmount, _clampRGBMargin);
-        rgb.b = RoundClamp(rgb.b, _clampRGBAmount, _clampRGBMargin);
+        int margin = 0;
+        if (forDisplay) margin = _clampRGBMargin;
+        rgb.r = RoundClamp(rgb.r, _clampRGBAmount, margin);
+        rgb.g = RoundClamp(rgb.g, _clampRGBAmount, margin);
+        rgb.b = RoundClamp(rgb.b, _clampRGBAmount, margin);
     }
     
     return rgb;
@@ -391,7 +393,7 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
     {
         for (int x = 0; x < width; x++)
         {
-            _imageData[x + y * width] = [self colorAtPoint:CGPointMake(x, y)];
+            _imageData[x + y * width] = [self colorAtPoint:CGPointMake(x, y) forDisplay:YES];
         }
     }
     
@@ -421,7 +423,7 @@ NS_INLINE unsigned char RoundClamp(unsigned char value, int rounding, int margin
 - (UIColor*)currentColor
 {
     if (self.superview != nil && _radius > 0.0f) {
-        ISColorWheelPixelRGB pixel = [self colorAtPoint:[self viewToImageSpace:_touchPoint]];
+        ISColorWheelPixelRGB pixel = [self colorAtPoint:[self viewToImageSpace:_touchPoint] forDisplay:NO];
         _currentColor = [UIColor colorWithRed:pixel.r / 255.0f green:pixel.g / 255.0f blue:pixel.b / 255.0f alpha:1.0];
     }
     return _currentColor;
